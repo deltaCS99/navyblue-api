@@ -6,41 +6,32 @@ import auth from '../../middlewares/auth';
 
 const router = express.Router();
 
+// -------------------- Auth Routes --------------------
 router.post('/register', validate(authValidation.register), authController.register);
 router.post('/login', validate(authValidation.login), authController.login);
 router.post('/logout', validate(authValidation.logout), authController.logout);
-router.post(
-  '/refresh-tokens',
-  validate(authValidation.refreshTokens),
-  authController.refreshTokens
-);
-router.post(
-  '/forgot-password',
-  validate(authValidation.forgotPassword),
-  authController.forgotPassword
-);
-router.post(
-  '/reset-password',
-  validate(authValidation.resetPassword),
-  authController.resetPassword
-);
+router.post('/refresh-tokens', validate(authValidation.refreshTokens), authController.refreshTokens);
+router.post('/forgot-password', validate(authValidation.forgotPassword), authController.forgotPassword);
+router.post('/reset-password', validate(authValidation.resetPassword), authController.resetPassword);
 router.post('/send-verification-email', auth(), authController.sendVerificationEmail);
 router.post('/verify-email', validate(authValidation.verifyEmail), authController.verifyEmail);
 
 export default router;
 
+// -------------------- Swagger Docs --------------------
+
 /**
  * @swagger
  * tags:
  *   name: Auth
- *   description: Authentication
+ *   description: Authentication endpoints
  */
 
 /**
  * @swagger
  * /auth/register:
  *   post:
- *     summary: Register as user
+ *     summary: Register as a user
  *     tags: [Auth]
  *     requestBody:
  *       required: true
@@ -49,11 +40,16 @@ export default router;
  *           schema:
  *             type: object
  *             required:
- *               - name
+ *               - firstName
+ *               - lastName
  *               - email
  *               - password
+ *               - grade
+ *               - province
  *             properties:
- *               name:
+ *               firstName:
+ *                 type: string
+ *               lastName:
  *                 type: string
  *               email:
  *                 type: string
@@ -64,10 +60,30 @@ export default router;
  *                 format: password
  *                 minLength: 8
  *                 description: At least one number and one letter
+ *               grade:
+ *                 type: string
+ *                 enum: [GRADE_10, GRADE_11, GRADE_12]
+ *               province:
+ *                 type: string
+ *                 enum: [GAUTENG, WESTERN_CAPE, KWAZULU_NATAL, EASTERN_CAPE, LIMPOPO, MPUMALANGA, NORTH_WEST, FREE_STATE, NORTHERN_CAPE]
+ *               syllabus:
+ *                 type: string
+ *                 enum: [CAPS, IEB]
+ *               schoolName:
+ *                 type: string
+ *               role:
+ *                 type: string
+ *                 enum: [USER, ADMIN]
  *             example:
- *               name: fake name
- *               email: fake@example.com
- *               password: password1
+ *               firstName: John
+ *               lastName: Doe
+ *               email: student@example.com
+ *               password: Password1
+ *               grade: GRADE_12
+ *               province: GAUTENG
+ *               syllabus: CAPS
+ *               schoolName: ABC High School
+ *               role: USER
  *     responses:
  *       "201":
  *         description: Created
@@ -107,8 +123,8 @@ export default router;
  *                 type: string
  *                 format: password
  *             example:
- *               email: fake@example.com
- *               password: password1
+ *               email: student@example.com
+ *               password: Password1
  *     responses:
  *       "200":
  *         description: OK
@@ -122,14 +138,7 @@ export default router;
  *                 tokens:
  *                   $ref: '#/components/schemas/AuthTokens'
  *       "401":
- *         description: Invalid email or password
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
- *             example:
- *               code: 401
- *               message: Invalid email or password
+ *         $ref: '#/components/responses/Unauthorized'
  */
 
 /**
@@ -150,7 +159,7 @@ export default router;
  *               refreshToken:
  *                 type: string
  *             example:
- *               refreshToken: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1ZWJhYzUzNDk1NGI1NDEzOTgwNmMxMTIiLCJpYXQiOjE1ODkyOTg0ODQsImV4cCI6MTU4OTMwMDI4NH0.m1U63blB0MLej_WfB7yC2FTMnCziif9X8yzwDEfJXAg
+ *               refreshToken: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
  *     responses:
  *       "204":
  *         description: No content
@@ -176,7 +185,7 @@ export default router;
  *               refreshToken:
  *                 type: string
  *             example:
- *               refreshToken: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1ZWJhYzUzNDk1NGI1NDEzOTgwNmMxMTIiLCJpYXQiOjE1ODkyOTg0ODQsImV4cCI6MTU4OTMwMDI4NH0.m1U63blB0MLej_WfB7yC2FTMnCziif9X8yzwDEfJXAg
+ *               refreshToken: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
  *     responses:
  *       "200":
  *         description: OK
@@ -193,7 +202,6 @@ export default router;
  * /auth/forgot-password:
  *   post:
  *     summary: Forgot password
- *     description: An email will be sent to reset password.
  *     tags: [Auth]
  *     requestBody:
  *       required: true
@@ -208,7 +216,7 @@ export default router;
  *                 type: string
  *                 format: email
  *             example:
- *               email: fake@example.com
+ *               email: student@example.com
  *     responses:
  *       "204":
  *         description: No content
@@ -244,19 +252,12 @@ export default router;
  *                 minLength: 8
  *                 description: At least one number and one letter
  *             example:
- *               password: password1
+ *               password: Password1
  *     responses:
  *       "204":
  *         description: No content
  *       "401":
- *         description: Password reset failed
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
- *             example:
- *               code: 401
- *               message: Password reset failed
+ *         $ref: '#/components/responses/Unauthorized'
  */
 
 /**
@@ -264,7 +265,6 @@ export default router;
  * /auth/send-verification-email:
  *   post:
  *     summary: Send verification email
- *     description: An email will be sent to verify email.
  *     tags: [Auth]
  *     security:
  *       - bearerAuth: []
@@ -279,7 +279,7 @@ export default router;
  * @swagger
  * /auth/verify-email:
  *   post:
- *     summary: verify email
+ *     summary: Verify email
  *     tags: [Auth]
  *     parameters:
  *       - in: query
@@ -292,12 +292,5 @@ export default router;
  *       "204":
  *         description: No content
  *       "401":
- *         description: verify email failed
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
- *             example:
- *               code: 401
- *               message: verify email failed
+ *         $ref: '#/components/responses/Unauthorized'
  */

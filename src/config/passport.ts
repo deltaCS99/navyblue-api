@@ -5,7 +5,7 @@ import { TokenType } from '@prisma/client';
 
 const jwtOptions = {
   secretOrKey: config.jwt.secret,
-  jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken()
+  jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
 };
 
 const jwtVerify: VerifyCallback = async (payload, done) => {
@@ -13,17 +13,29 @@ const jwtVerify: VerifyCallback = async (payload, done) => {
     if (payload.type !== TokenType.ACCESS) {
       throw new Error('Invalid token type');
     }
+
     const user = await prisma.user.findUnique({
+      where: { id: payload.sub },
       select: {
         id: true,
         email: true,
-        name: true
+        firstName: true,
+        lastName: true,
+        grade: true,
+        province: true,
+        syllabus: true,
+        schoolName: true,
+        role: true,
+        isEmailVerified: true,
+        createdAt: true,
+        updatedAt: true,
       },
-      where: { id: payload.sub }
     });
+
     if (!user) {
       return done(null, false);
     }
+
     done(null, user);
   } catch (error) {
     done(error, false);

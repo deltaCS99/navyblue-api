@@ -2,19 +2,37 @@ import httpStatus from 'http-status';
 import pick from '../utils/pick';
 import ApiError from '../utils/ApiError';
 import catchAsync from '../utils/catchAsync';
-import { userService } from '../services';
+import userService from '../services/user.service';
+import { Role, Grade, Province, Syllabus } from '@prisma/client';
 
 const createUser = catchAsync(async (req, res) => {
-  const { email, password, name, role } = req.body;
-  const user = await userService.createUser(email, password, name, role);
+  const { email, password, firstName, lastName, grade, province, syllabus, schoolName, role } = req.body;
+
+  // validate required fields
+  if (!email || !password || !firstName || !lastName || !grade || !province) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'Missing required user fields');
+  }
+
+  const user = await userService.createUser({
+    email,
+    password,
+    firstName,
+    lastName,
+    grade: grade as Grade,
+    province: province as Province,
+    syllabus: syllabus as Syllabus | undefined,
+    schoolName,
+    role: role as Role | undefined
+  });
+
   res.status(httpStatus.CREATED).send(user);
 });
 
 const getUsers = catchAsync(async (req, res) => {
-  const filter = pick(req.query, ['name', 'role']);
-  const options = pick(req.query, ['sortBy', 'limit', 'page']);
-  const result = await userService.queryUsers(filter, options);
-  res.send(result);
+  const filter = pick(req.query, ['firstName', 'lastName', 'email', 'role', 'grade', 'province']);
+  const options = pick(req.query, ['sortBy', 'limit', 'page', 'sortType']);
+  const users = await userService.queryUsers(filter, options);
+  res.send(users);
 });
 
 const getUser = catchAsync(async (req, res) => {
