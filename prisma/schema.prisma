@@ -1,0 +1,255 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Grade {
+  GRADE_10
+  GRADE_11
+  GRADE_12
+}
+
+enum Province {
+  GAUTENG
+  WESTERN_CAPE
+  KWAZULU_NATAL
+  EASTERN_CAPE
+  LIMPOPO
+  MPUMALANGA
+  NORTH_WEST
+  FREE_STATE
+  NORTHERN_CAPE
+}
+
+enum Subject {
+  MATH
+  PHYS_SCI
+}
+
+enum Syllabus {
+  CAPS
+  IEB
+}
+
+enum ExamPeriod {
+  TERM_1
+  TERM_2
+  TERM_3
+  TERM_4
+}
+
+enum ExamLevel {
+  TEACHER_MADE
+  PROVINCIAL
+  NATIONAL
+}
+
+enum PaperType {
+  PAPER_1
+  PAPER_2
+  PAPER_3
+}
+
+enum StepMarkingStatus {
+  CORRECT
+  INCORRECT
+  NOT_ATTEMPTED
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum TokenType {
+  ACCESS
+  REFRESH
+  RESET_PASSWORD
+  VERIFY_EMAIL
+}
+
+model User {
+  id              String   @id @default(cuid())
+  email           String   @unique
+  firstName       String   @map("first_name")
+  lastName        String   @map("last_name")
+  password        String
+  grade           Grade
+  province        Province
+  syllabus        Syllabus @default(CAPS)
+  schoolName      String?  @map("school_name")
+  role            Role     @default(USER)
+  isEmailVerified Boolean  @default(false) @map("is_email_verified")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  Token    Token[]
+  attempts StudentAttempt[]
+
+  @@index([grade, syllabus])
+  @@index([createdAt])
+  @@map("users")
+}
+
+model Token {
+  id          String    @id @default(cuid())
+  token       String
+  type        TokenType
+  expires     DateTime
+  blacklisted Boolean   @default(false)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String    @map("user_id")
+
+  @@index([userId])
+  @@index([token])
+  @@index([expires])
+  @@map("tokens")
+}
+
+model ExamPaper {
+  id              String     @id @default(cuid())
+  title           String
+  subject         Subject
+  grade           Grade
+  syllabus        Syllabus   @default(CAPS)
+  year            Int
+  examPeriod      ExamPeriod @map("exam_period")
+  examLevel       ExamLevel  @map("exam_level")
+  paperType       PaperType  @map("paper_type")
+  province        Province?
+  paperNumber     String     @map("paper_number")
+  durationMinutes Int        @map("duration_minutes")
+  instructions    String?
+  totalMarks      Int?       @map("total_marks")
+  isActive        Boolean    @default(true) @map("is_active")
+  uploadedBy      String?    @map("uploaded_by")
+  uploadedAt      DateTime   @default(now()) @map("uploaded_at")
+  updatedAt       DateTime   @updatedAt @map("updated_at")
+
+  questions Question[]
+  attempts  StudentAttempt[]
+
+  @@index([subject, grade, syllabus])
+  @@index([year, examPeriod])
+  @@index([paperType])
+  @@index([isActive])
+  @@index([uploadedAt])
+  @@map("exam_papers")
+}
+
+model Question {
+  id             String   @id @default(cuid())
+  paperId        String   @map("paper_id")
+  questionNumber String   @map("question_number")
+  contextText    String   @map("context_text")
+  contextImages  String[] @default([]) @map("context_images")
+  topics         String[] @default([]) // Hierarchical: ["algebra", "algebra.quadratics", "algebra.quadratics.factoring"]
+  totalMarks     Int?     @map("total_marks")
+  orderIndex     Int      @map("order_index")
+  pageNumber     Int      @map("page_number") // Which page this question appears on
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  paper ExamPaper      @relation(fields: [paperId], references: [id], onDelete: Cascade)
+  parts QuestionPart[]
+
+  @@index([paperId])
+  @@index([paperId, pageNumber])
+  @@index([paperId, orderIndex])
+  @@index([topics])
+  @@map("questions")
+}
+
+model QuestionPart {
+  id              String   @id @default(cuid())
+  questionId      String   @map("question_id")
+  parentPartId    String?  @map("parent_part_id")
+  partNumber      String   @map("part_number")
+  partText        String   @map("part_text")
+  marks           Int      @default(0)
+  partImages      String[] @default([]) @map("part_images")
+  nestingLevel    Int      @default(1) @map("nesting_level")
+  orderIndex      Int      @map("order_index")
+  requiresWorking Boolean  @default(false) @map("requires_working")
+  isActive        Boolean  @default(true) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  question      Question       @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  parentPart    QuestionPart?  @relation("PartHierarchy", fields: [parentPartId], references: [id])
+  subParts      QuestionPart[] @relation("PartHierarchy")
+  solutionSteps SolutionStep[]
+
+  @@index([questionId])
+  @@index([questionId, orderIndex])
+  @@index([parentPartId])
+  @@map("question_parts")
+}
+
+model SolutionStep {
+  id               String   @id @default(cuid())
+  partId           String   @map("part_id")
+  stepNumber       Int      @map("step_number")
+  description      String
+  workingOut       String?  @map("working_out")
+  marksForThisStep Int      @map("marks_for_this_step")
+  solutionImages   String[] @default([]) @map("solution_images")
+  teachingNote     String?  @map("teaching_note")
+  hintText         String?  @map("hint_text")
+  orderIndex       Int      @map("order_index")
+  isCriticalStep   Boolean  @default(false) @map("is_critical_step")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  part         QuestionPart  @relation(fields: [partId], references: [id], onDelete: Cascade)
+  stepAttempts StepAttempt[]
+
+  @@index([partId])
+  @@index([partId, orderIndex])
+  @@map("solution_steps")
+}
+
+model StudentAttempt {
+  id                 String    @id @default(cuid())
+  userId             String    @map("user_id")
+  paperId            String    @map("paper_id")
+  startedAt          DateTime  @default(now()) @map("started_at")
+  completedAt        DateTime? @map("completed_at")
+  lastActivityAt     DateTime  @default(now()) @map("last_activity_at")
+  totalMarksEarned   Int?      @map("total_marks_earned")
+  totalMarksPossible Int?      @map("total_marks_possible")
+  percentageScore    Float?    @map("percentage_score")
+  timeSpentMinutes   Int?      @map("time_spent_minutes")
+  questionsAttempted Int       @default(0) @map("questions_attempted")
+  questionsCompleted Int       @default(0) @map("questions_completed")
+  isAbandoned        Boolean   @default(false) @map("is_abandoned")
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  paper        ExamPaper     @relation(fields: [paperId], references: [id], onDelete: Cascade)
+  stepAttempts StepAttempt[]
+
+  @@index([userId])
+  @@index([paperId])
+  @@index([userId, paperId])
+  @@index([startedAt])
+  @@index([completedAt])
+  @@map("student_attempts")
+}
+
+model StepAttempt {
+  id               String            @id @default(cuid())
+  studentAttemptId String            @map("student_attempt_id")
+  stepId           String            @map("step_id")
+  status           StepMarkingStatus
+  markedAt         DateTime          @default(now()) @map("marked_at")
+
+  studentAttempt StudentAttempt @relation(fields: [studentAttemptId], references: [id], onDelete: Cascade)
+  step           SolutionStep   @relation(fields: [stepId], references: [id], onDelete: Cascade)
+
+  @@unique([studentAttemptId, stepId])
+  @@map("step_attempts")
+}
